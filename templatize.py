@@ -142,6 +142,7 @@ def run(target, generator):
 		shutil.rmtree(build)
 	if (os.path.isdir(base)):
 		shutil.rmtree(base)
+		
 	handle = make(base, "CMakeLists.txt")
 	write(handle, "cmake_minimum_required(VERSION 3.4.1)")
 	write(handle, "set(CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS} -std=c++"+cpp+"\")")
@@ -151,6 +152,7 @@ def run(target, generator):
 	write(handle, "add_subdirectory("+src+")")
 	write(handle, "")
 	handle.close()
+	
 	base = os.path.join(base, src)
 	handle = make(base, "CMakeLists.txt")
 	write(handle, "set(SOURCES )")
@@ -162,6 +164,7 @@ def run(target, generator):
 	write(handle, "set_property(TARGET "+name+" PROPERTY CXX_STANDARD_REQUIRED ON)")
 	write(handle, "")
 	handle.close()
+	
 	handle = make(base, main)
 	tags = tree.getTags()
 	nodes = tree.getNodes()
@@ -171,8 +174,33 @@ def run(target, generator):
 	write(handle, "#include <iostream>")
 	write(handle, "#include <utility>")
 	write(handle, "#define TAB \"  \"")
+	
 	write(handle, "template <typename T, typename... U>")
-	write(handle, "struct Node : public T {};")
+	write(handle, "struct Node;")
+	write(handle, "template <typename T>")
+	write(handle, "struct Tag;")
+	
+	write(handle, "template <typename T>")
+	write(handle, "const std::string& getTag() {")
+	write(handle, "return T::getInstance().getTag(); }")
+	
+	write(handle, "template <typename T, typename... U>")
+	write(handle, "struct Node : public T {")
+	write(handle, "public: void output(int level) {}")
+	write(handle, "void doOutput(int level) {")
+	write(handle, "for (int i = 0; i != level; ++i) {")
+	write(handle, "std::cout << TAB; }")
+	write(handle, "std::cout << getTag<T>() << std::endl;")
+	write(handle, "output(level, U()...); }")
+	write(handle, "void output() {")
+	write(handle, "doOutput(0); }")
+	write(handle, "template <typename V>")
+	write(handle, "void output(int level, V node) {")
+	write(handle, "node.doOutput(level+1); }")
+	write(handle, "template <typename V, typename... W>")
+	write(handle, "void output(int level, V node, W... nodes) {")
+	write(handle, "output(level, node);")
+	write(handle, "output(level, std::forward<W>(nodes)...); } };")
 	write(handle, "template <typename T>")
 	write(handle, "struct Tag {")
 	write(handle, "public: virtual const std::string& getTag() const = 0;")
@@ -181,18 +209,8 @@ def run(target, generator):
 	write(handle, "template <typename T>")
 	write(handle, "const T& Tag<T>::getInstance() {")
 	write(handle, "return *instance; }")
-	write(handle, "template <typename T, typename... U>")
-	write(handle, "void output(int level, T node, U... nodes) {")
-	write(handle, "for (int i = 0; i != level; ++i) {")
-	write(handle, "std::cout << TAB; }")
-	write(handle, "std::cout << T::getInstance().getTag() << std::endl;")
-	write(handle, "output(level+1, std::forward<U>(nodes)...); }")
-	write(handle, "template <typename T>")
-	write(handle, "void output(int level, T node) {")
-	write(handle, "for (int i = 0; i != level; ++i) {")
-	write(handle, "std::cout << TAB; }")
-	write(handle, "std::cout << T::getInstance().getTag() << std::endl; }")
 	write(handle, "")
+	
 	for i in range(len(nodes)):
 		write(handle, "struct Node_"+str(i+1)+";")
 		templates.append("Node_"+str(i+1))
@@ -210,6 +228,7 @@ def run(target, generator):
 	write(handle, "typedef Tree<"+template+"> XML;")
 	write(handle, "typedef Node_"+str(tree.getRoot().getIndex()+1)+" Root;")
 	write(handle, "")
+	
 	for i in range(len(tags)):
 		write(handle, "struct Tag_"+str(i+1)+" : public Tag<Tag_"+str(i+1)+"> {")
 		write(handle, "public: static const std::string tag;")
@@ -221,11 +240,13 @@ def run(target, generator):
 	write(handle, "")
 	output(handle, node)
 	write(handle, "")
+	
 	write(handle, "int main(int argc, char ** argv) {")
-	write(handle, "output<Root>(0, Root());");
+	write(handle, "Root().output();");
 	write(handle, "return 0; }")
 	write(handle, "")
 	handle.close()
+	
 	cmake = ["cmake", "-G", generator, base]
 	execute(cmake, build)
 	cmake = ["cmake", "--build", "."]
