@@ -118,7 +118,7 @@ def execute(command, base):
 	write(handle, executable)
 	write(handle, "")
 	handle.close()
-	process = subprocess.Popen(executable, cwd=base, shell=False)
+	process = subprocess.Popen(command, cwd=base, shell=False)
 	(output, error) = process.communicate()
 	status = process.wait()
 	print(output)
